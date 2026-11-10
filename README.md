@@ -2,7 +2,7 @@
 
 Scripts do Trabalho de Conclusão de Curso **"Recursos represados no SUS: federalismo, capacidade estatal municipal e baixa execução financeira dos repasses estaduais em Minas Gerais (2016-2022)"**, apresentado ao curso de Administração Pública da Escola de Governo da Fundação João Pinheiro (FJP), em 2026.
 
-Autor: Matheus Avelar
+Autor: Matheus Magalhães Avelar
 
 ## Sobre a pesquisa
 
