@@ -82,12 +82,24 @@ t9 <- dm |> mutate(v_obj = coalesce(pct_objeto, 0) / 100 * saldo_total,
 
 ok <- dm |> filter(destino_capital + destino_corrente > 0) |>
   mutate(pessoal_destino = destino_pessoal_X / (destino_capital + destino_corrente))
-t10 <- ok |> group_by(Faixa = faixa) |>
+resumo_destino <- function(x) x |>
   summarise(`Municípios` = n(),
             `Capital na origem (%)` = sum(origem_capital_todos_anos) / sum(origem_capital_todos_anos + origem_corrente_todos_anos) * 100,
             `Capital no destino (%)` = sum(destino_capital) / sum(destino_capital + destino_corrente) * 100,
             `Pessoal (inciso X) no destino (%)` = sum(destino_pessoal_X) / sum(destino_capital + destino_corrente) * 100,
             `Municípios que destinam algo a pessoal (%)` = mean(destino_pessoal_X > 0) * 100)
+# linhas por faixa e linha Total calculada sobre os MESMOS municípios das faixas (Tabela A.13)
+t10 <- bind_rows(ok |> group_by(Faixa = faixa) |> resumo_destino() |> mutate(Faixa = as.character(Faixa)),
+                 ok |> resumo_destino() |> mutate(Faixa = "Total", .before = 1))
+# Comparação município a município sobre os mesmos municípios da Tabela A.13 (nota da tabela e subseção 9.5)
+cmp <- ok |> filter(origem_capital_todos_anos + origem_corrente_todos_anos > 0) |>
+  mutate(cap_o = origem_capital_todos_anos / (origem_capital_todos_anos + origem_corrente_todos_anos) * 100,
+         cap_d = destino_capital / (destino_capital + destino_corrente) * 100, var = cap_d - cap_o)
+t10b <- tibble(Indicador = c("Municípios comparados", "Capital na origem - mediana municipal (%)",
+                             "Capital no destino - mediana municipal (%)", "Municípios que reduziram a parcela de capital",
+                             "Municípios que aumentaram a parcela de capital", "Municípios sem variação (diferença de até 0,5 p.p.)"),
+               Valor = c(nrow(cmp), median(cmp$cap_o), median(cmp$cap_d), sum(cmp$var < -0.5), sum(cmp$var > 0.5),
+                         sum(abs(cmp$var) <= 0.5)))
 
 # Qui-quadrado e V de Cramér (metodologia, 7.5 a): distribuição dos motivos (Formulário A)
 # e dos destinos por inciso do art. 3º da LC 141/2012 (Formulário B) entre as seis faixas.
@@ -127,7 +139,7 @@ testes <- bind_rows(
 
 grava_excel(list(T8_perfil_por_faixa = t8, T8b_pares_saldo_fin_hab = t8b, T9_motivo_por_faixa = t9,
                  T9b_quiquadrado_por_faixa = t9b, T9c_motivo_por_faixa_registros = t9c,
-                 T10_destino_por_faixa = t10, Testes = testes, Sem_censo = sem_censo), "parte3_porte.xlsx")
+                 T10_destino_por_faixa = t10, T10b_destino_municipio = t10b, Testes = testes, Sem_censo = sem_censo), "parte3_porte.xlsx")
 
 # ---------------------------------------------------------------------
 # 6. Figuras
@@ -145,7 +157,7 @@ salva_fig(ggplot(f6, aes(pct, Faixa, fill = Motivo)) + geom_col(width = 0.65, co
             scale_fill_manual(values = c(VERDE, LARANJA, AZUL), breaks = MOT) +
             labs(x = "% do valor declarado", y = NULL) + tema_tcc, "fig6_motivo_por_faixa.png")
 
-f7 <- t10 |> select(Faixa, `Capital na origem (%)`, `Capital no destino (%)`) |>
+f7 <- t10 |> filter(Faixa != "Total") |> mutate(Faixa = factor(Faixa, levels = FAIXAS)) |> select(Faixa, `Capital na origem (%)`, `Capital no destino (%)`) |>
   pivot_longer(-Faixa, names_to = "Tipo", values_to = "v") |> mutate(Tipo = str_remove(Tipo, " \\(%\\)"))
 salva_fig(ggplot(f7, aes(Faixa, v, fill = Tipo)) + geom_col(position = position_dodge(0.8), width = 0.75) +
             scale_fill_manual(values = c(AZUL, LARANJA)) + labs(x = NULL, y = "% do valor") + tema_tcc,
